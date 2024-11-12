@@ -1,0 +1,76 @@
+{{define "index"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
+</head>
+<body>
+    <h3 id="connection_status">Connection status is IDLE</h3>
+    {{template "chat_input" .}}
+    {{template "displaying" .}}
+    {{template "form"}}
+</body>
+</html>
+{{end}}
+
+{{define "chat_input"}}
+<form hx-put="/change_chatroom" hx-swap="outerHTML">
+    <input type="text" id="chatroom_id" name="chatroom_id" placeholder="{{.}}">
+    <input type="submit" value="Submit_cr">
+</form>
+{{end}}
+
+{{define "displaying"}}
+        <textarea id="messagearea" readonly style="weight:500px; height:300px">
+        </textarea>
+{{end}}
+
+{{define "form"}}
+<button id="connect">Connect WebSocket</button>
+<input type="text" id="message" placeholder="Type your message">
+<button id="sendMessage">Send Message</button>
+<script>
+    let socket;
+
+    document.getElementById("connect").addEventListener("click", function() {
+        var chatroomId = document.getElementById("chatroom_id").value;
+        if (!chatroomId) {
+            alert("Please enter a chatroom ID.");
+            return;
+        }
+        socket = new WebSocket("ws://localhost:8080/ws/chatroom/" + chatroomId);
+        socket.onopen = function() {
+            document.getElementById("connection_status").innerHTML = "Connection status is ACTIVE for chatroom: " + chatroomId;
+        };
+        socket.onmessage = function(event) {
+            var messageArea = document.getElementById("messagearea");
+
+            messageArea.value += event.data + "\n";
+            messageArea.scrollTop = messageArea.scrollHeight;
+        };
+        socket.onerror = function(error) {
+            document.getElementById("connection_status").innerHTML = "Connection status is NOT ACTIVE/FAILED";
+        };
+    });
+
+    document.getElementById("sendMessage").addEventListener("click", function() {
+        var chatroomId = document.getElementById("chatroom_id").value;
+        var message = document.getElementById("message").value;
+
+        if (!message) {
+            alert("Please enter a message.");
+            return;
+        }
+
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(message); 
+        } else {
+            alert("WebSocket connection is not open.");
+        }
+    });
+</script>
+
+{{end}}
