@@ -7,6 +7,9 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/joho/godotenv"
+	"github.com/razvanmarinn/chatroom/internal/db"
+	"github.com/razvanmarinn/chatroom/internal/auth"
 	"github.com/labstack/echo/v4"
 )
 
@@ -41,19 +44,25 @@ func newPage() *Page {
 }
 
 func main() {
+	 
 	e := echo.New()
-
+	godotenv.Load("../.env")
+	db.Init()
 	ow := newOverviewer()
 
 	page := newPage()
 	t := &Template{
-		templates: template.Must(template.ParseFiles("index.html")),
+		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
 
 	e.GET("/", func(c echo.Context) error {
 		return c.Render(http.StatusOK, "index", page)
 	})
+
+	e.GET("/login", auth.LoginHandler)
+
+	e.POST("/signup", auth.RegisterHandler)
 
 	e.PUT("/change_chatroom", func(c echo.Context) error {
 		fmt.Println("chat changed to room no : ", c.FormValue("chatroom_id"))
