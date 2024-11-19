@@ -1,16 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 
 	"github.com/joho/godotenv"
-	"github.com/razvanmarinn/chatroom/internal/db"
-	"github.com/razvanmarinn/chatroom/internal/auth"
 	"github.com/labstack/echo/v4"
+	"github.com/razvanmarinn/chatroom/internal/auth"
+	"github.com/razvanmarinn/chatroom/internal/db"
+	"github.com/razvanmarinn/chatroom/internal/handlers"
 )
 
 type Template struct {
@@ -21,62 +21,42 @@ func (t *Template) Render(w io.Writer, name string, data interface{}, c echo.Con
 	return t.templates.ExecuteTemplate(w, name, data)
 }
 
-var globalCounter = 0
+func IsAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		sessionToken, err := c.Cookie("session_token")
+		if err != nil {
+			return c.Redirect(http.StatusFound, "/login")
+		}
+		if sessionToken == nil || sessionToken.Value == "" {
+			return c.Redirect(http.StatusFound, "/login")
+		}
 
-type User struct {
-	Name string
-	Id   int
-}
-
-func newUser(name string) *User {
-	globalCounter++
-	return &User{Name: name, Id: globalCounter}
-}
-
-type Page struct {
-	Data []User
-}
-
-func newPage() *Page {
-	return &Page{
-		Data: []User{},
+		return next(c)
 	}
 }
-
 func main() {
-	 
 	e := echo.New()
 	godotenv.Load("../.env")
 	db.Init()
 	ow := newOverviewer()
 
-	page := newPage()
 	t := &Template{
 		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
 
-	e.GET("/", func(c echo.Context) error {
-		return c.Render(http.StatusOK, "index", page)
-	})
-
 	e.GET("/login", auth.LoginHandler)
-
+	e.POST("/login", auth.LoginHandler)
+	e.GET("/signup", auth.RegisterHandler)
 	e.POST("/signup", auth.RegisterHandler)
 
-	e.PUT("/change_chatroom", func(c echo.Context) error {
-		fmt.Println("chat changed to room no : ", c.FormValue("chatroom_id"))
-		return c.Render(http.StatusOK, "chat_input", c.FormValue("chatroom_id"))
+	protected := e.Group("")
+	protected.Use(IsAuthenticated)
+
+	protected.GET("/", func(c echo.Context) error {
+		return c.Render(http.StatusOK, "index", nil)
 	})
-
-	e.GET("/ws/:chatroom_id", ow.connectWS)
-
-	e.POST("/create_user", func(c echo.Context) error {
-		name := c.FormValue("name")
-		user := newUser(name)
-		page.Data = append(page.Data, *user)
-		return c.Render(http.StatusOK, "displaying", page)
-	})
-
+	protected.POST("/create-room", handlers.RoomHandler)
+	protected.GET("/ws/room/:room_name", ow.connectWS)
 	log.Fatal(e.Start(":8080"))
 }

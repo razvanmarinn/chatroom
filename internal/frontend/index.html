@@ -1,76 +1,135 @@
-{{define "index"}}
+{{define "index"}} 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>WebSocket Chat Room</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@2.0.3" integrity="sha384-0895/pl2MU10Hqc6jd4RvrthNlDiE9U1tWmX7WRESftEDRosgxNsQG/Ze9YMRzHq" crossorigin="anonymous"></script>
 </head>
-<body>
-    <h3 id="connection_status">Connection status is IDLE</h3>
-    {{template "chat_input" .}}
-    {{template "displaying" .}}
-    {{template "form"}}
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="bg-white shadow-md rounded-lg p-6 w-full max-w-md">
+        <h3 id="connection_status" class="mb-4 p-2 bg-gray-200 text-center rounded text-gray-700">
+            Connection status is IDLE
+        </h3>
+
+        {{template "create_room_input" .}}
+        {{template "displaying" .}}
+        {{template "form"}}
+    </div>
 </body>
 </html>
 {{end}}
 
-{{define "chat_input"}}
-<form hx-put="/change_chatroom" hx-swap="outerHTML">
-    <input type="text" id="chatroom_id" name="chatroom_id" placeholder="{{.}}">
-    <input type="submit" value="Submit_cr">
+{{define "create_room_input"}}
+<form hx-post="/create-room" hx-swap="innerHTML" class="mb-4 flex space-x-2">
+    <input 
+        type="text" 
+        id="cr_room_name" 
+        name="cr_room_name" 
+        placeholder="Room Name" 
+        class="flex-grow p-2 border rounded"
+    >
+    <input 
+        type="submit" 
+        value="Create Room" 
+        class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+    >
 </form>
 {{end}}
 
 {{define "displaying"}}
-        <textarea id="messagearea" readonly style="weight:500px; height:300px">
-        </textarea>
+<textarea 
+    id="messagearea" 
+    readonly 
+    class="w-full h-48 p-2 mb-4 border rounded bg-gray-50 resize-none"
+    placeholder="Messages will appear here..."
+></textarea>
 {{end}}
 
 {{define "form"}}
-<button id="connect">Connect WebSocket</button>
-<input type="text" id="message" placeholder="Type your message">
-<button id="sendMessage">Send Message</button>
+<div class="space-y-2">
+    <input 
+        type="text" 
+        id="room_name" 
+        name="room_name" 
+        placeholder="Enter Room Name" 
+        class="w-full p-2 border rounded mb-2"
+    >
+    <button 
+        id="connect" 
+        class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600 mb-2"
+    >
+        Connect WebSocket
+    </button>
+
+    <div class="flex space-x-2">
+        <input 
+            type="text" 
+            id="message" 
+            placeholder="Type your message" 
+            class="flex-grow p-2 border rounded"
+        >
+        <button 
+            id="sendMessage" 
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+            Send
+        </button>
+    </div>
+</div>
+
 <script>
     let socket;
-
+    
     document.getElementById("connect").addEventListener("click", function() {
-        var chatroomId = document.getElementById("chatroom_id").value;
-        if (!chatroomId) {
+        var roomName = document.getElementById("room_name").value;
+        if (!roomName) {
             alert("Please enter a chatroom ID.");
             return;
         }
-        socket = new WebSocket("ws://localhost:8080/ws/chatroom/" + chatroomId);
+        socket = new WebSocket("ws://localhost:8080/ws/room/" + roomName);
+        
         socket.onopen = function() {
-            document.getElementById("connection_status").innerHTML = "Connection status is ACTIVE for chatroom: " + chatroomId;
+            document.getElementById("connection_status").innerHTML = 
+                "Connection status is ACTIVE for chatroom: " + roomName;
+            document.getElementById("connection_status").className = 
+                "mb-4 p-2 bg-green-200 text-center rounded text-green-800";
         };
+        
         socket.onmessage = function(event) {
             var messageArea = document.getElementById("messagearea");
-
             messageArea.value += event.data + "\n";
             messageArea.scrollTop = messageArea.scrollHeight;
         };
+        
         socket.onerror = function(error) {
-            document.getElementById("connection_status").innerHTML = "Connection status is NOT ACTIVE/FAILED";
+            document.getElementById("connection_status").innerHTML = 
+                "Connection status is NOT ACTIVE/FAILED";
+            document.getElementById("connection_status").className = 
+                "mb-4 p-2 bg-red-200 text-center rounded text-red-800";
         };
     });
-
+    
     document.getElementById("sendMessage").addEventListener("click", function() {
-        var chatroomId = document.getElementById("chatroom_id").value;
         var message = document.getElementById("message").value;
-
+        
         if (!message) {
             alert("Please enter a message.");
             return;
         }
-
+        
         if (socket && socket.readyState === WebSocket.OPEN) {
-            socket.send(message); 
+            socket.send(message);
+            document.getElementById("message").value = '';
         } else {
             alert("WebSocket connection is not open.");
         }
     });
-</script>
 
+    document.getElementById("connect").addEventListener("click", function() {
+    document.getElementById("messagearea").value = '';
+});
+</script>
 {{end}}
