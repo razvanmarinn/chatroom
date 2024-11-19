@@ -6,10 +6,13 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/razvanmarinn/chatroom/internal/db"
+	r_fact "github.com/razvanmarinn/chatroom/internal/db/repository_factory"
+	"github.com/razvanmarinn/chatroom/internal/middleware"
+
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
-	"github.com/razvanmarinn/chatroom/internal/auth"
-	"github.com/razvanmarinn/chatroom/internal/db"
+	"github.com/razvanmarinn/chatroom/internal/cfg"
 	"github.com/razvanmarinn/chatroom/internal/handlers"
 )
 
@@ -34,21 +37,51 @@ func IsAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
 		return next(c)
 	}
 }
+
 func main() {
+
+	config := cfg.LoadConfig()
+
+	dbConn, err := db.InitDatabase(config)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	repoFactory, err := r_fact.CreateRepositoryFactory(config.DbType, dbConn)
+	if err != nil {
+		log.Fatalf("Failed to create repository factory: %v", err)
+	}
+
+	userRepo, err := repoFactory.CreateUserRepository()
+	if err != nil {
+		log.Fatalf("Failed to create user repository: %v", err)
+	}
+
+	roomRepo, err := repoFactory.CreateRoomRepository()
+	if err != nil {
+		log.Fatalf("Failed to create room repository: %v", err)
+	}
+
+	messageRepo, err := repoFactory.CreateMessageRepository()
+	if err != nil {
+		log.Fatalf("Failed to create message repository: %v", err)
+	}
+	//TODO: Add services 
+
 	e := echo.New()
 	godotenv.Load("../.env")
-	db.Init()
+
 	ow := newOverviewer()
 
 	t := &Template{
 		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
-
-	e.GET("/login", auth.LoginHandler)
-	e.POST("/login", auth.LoginHandler)
-	e.GET("/signup", auth.RegisterHandler)
-	e.POST("/signup", auth.RegisterHandler)
+	e.Use(middleware.AddRepositoriesToContext(&userRepo, &roomRepo, &messageRepo))
+	e.GET("/login", handlers.LoginHandler)
+	e.POST("/login", handlers.LoginHandler)
+	e.GET("/signup", handlers.RegisterHandler)
+	e.POST("/signup", handlers.RegisterHandler)
 
 	protected := e.Group("")
 	protected.Use(IsAuthenticated)

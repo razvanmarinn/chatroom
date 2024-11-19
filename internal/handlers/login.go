@@ -1,4 +1,4 @@
-package auth
+package handlers
 
 import (
 	"crypto/rand"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/razvanmarinn/chatroom/internal/db"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
@@ -16,7 +17,7 @@ import (
 func generateSecureSessionToken() string {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		log.Fatal(err) // 
+		log.Fatal(err) //
 	}
 	return hex.EncodeToString(bytes)
 }
@@ -25,17 +26,24 @@ func LoginHandler(c echo.Context) error {
 	if c.Request().Method == http.MethodGet {
 		return c.Render(http.StatusOK, "login_body", nil)
 	}
+
+	userRepo := c.Request().Context().Value("userRepo").(db.UserRepository)
+
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	var user db.User
-	result := db.DB.Where("username = ?", username).First(&user)
-	if result.Error != nil {
-
+	if !userRepo.UserExists(username) {
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
+	}
+	// TODO:
+	// user := userRepo.GetUserByUsername(username)
+	user := db.User{
+		ID:       uuid.New(),
+		Password: "asd",
 	}
 
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+
 	if err != nil {
 
 		return c.String(http.StatusUnauthorized, "Invalid username or password")

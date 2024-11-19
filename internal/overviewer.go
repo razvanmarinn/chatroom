@@ -14,8 +14,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var chatroomConnections = make(map[string][]*websocket.Conn)
-
 var websocketUpgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
@@ -23,15 +21,19 @@ var websocketUpgrader = websocket.Upgrader{
 }
 
 type Overviewer struct {
-	ConnectedClients []Client
+	ConnectedClients map[string][]*websocket.Conn
 }
 
 func newOverviewer() *Overviewer {
-	return &Overviewer{ConnectedClients: []Client{}}
+	return &Overviewer{ConnectedClients: make(map[string][]*websocket.Conn)}
 }
 
 func (ow *Overviewer) connectWS(c echo.Context) error {
 	cookie, err := c.Cookie("session_token")
+	if err != nil {
+
+		fmt.Println("Error reading message:", err)
+	}
 	userUUID, found := ss.SessionStore.Get(cookie.Value)
 	if !found {
 		return c.String(http.StatusUnauthorized, "Invalid session")
@@ -47,17 +49,17 @@ func (ow *Overviewer) connectWS(c echo.Context) error {
 		return err
 	}
 
-	chatroomConnections[roomName] = append(chatroomConnections[roomName], conn)
+	ow.ConnectedClients[roomName] = append(ow.ConnectedClients[roomName], conn)
 
-	go handleMessages(conn, roomName, userUUID)
+	go ow.handleMessages(conn, roomName, userUUID)
 
 	return c.NoContent(200)
 }
 
-func handleMessages(conn *websocket.Conn, roomName string, userUUID string) {
+func (ow *Overviewer)handleMessages(conn *websocket.Conn, roomName string, userUUID string) {
 	defer conn.Close()
 
-	defer removeConnectionFromChatroom(conn, roomName)
+	defer ow.removeConnectionFromChatroom(conn, roomName)
 
 	for {
 		_, msg, err := conn.ReadMessage()
@@ -67,21 +69,21 @@ func handleMessages(conn *websocket.Conn, roomName string, userUUID string) {
 			fmt.Println("Error reading message:", err)
 			break
 		}
-		broadcastMessageToChatroom(_db.DB, roomName, msg, userUUID)
+		ow.broadcastMessageToChatroom(_db.DB, roomName, msg, userUUID)
 	}
 }
 
-func removeConnectionFromChatroom(conn *websocket.Conn, roomName string) {
-	connections := chatroomConnections[roomName]
+func (ow *Overviewer) removeConnectionFromChatroom(conn *websocket.Conn, roomName string) {
+	connections := ow.ConnectedClients[roomName]
 	for i, c := range connections {
 		if c == conn {
-			chatroomConnections[roomName] = append(connections[:i], connections[i+1:]...)
+			ow.ConnectedClients[roomName] = append(connections[:i], connections[i+1:]...)
 			break
 		}
 	}
 }
 
-func broadcastMessageToChatroom(db *gorm.DB, roomName string, messageContent []byte, userUUID string) {
+func (ow *Overviewer) broadcastMessageToChatroom(db *gorm.DB, roomName string, messageContent []byte, userUUID string) {
 
 	roomUUID, err := _db.GetRoomUUID(roomName)
 	if err != nil {
@@ -100,7 +102,7 @@ func broadcastMessageToChatroom(db *gorm.DB, roomName string, messageContent []b
 		return
 	}
 
-	username, err :=_db.GetUsername(uuid.MustParse(userUUID))
+	username, err := _db.GetUsername(uuid.MustParse(userUUID))
 	if err != nil {
 		fmt.Println("Error saving message:")
 
@@ -108,7 +110,7 @@ func broadcastMessageToChatroom(db *gorm.DB, roomName string, messageContent []b
 
 	formattedMessage := fmt.Sprintf("%s: %s", username, string(messageContent))
 
-	connections := chatroomConnections[roomName]
+	connections := ow.ConnectedClients[roomName]
 	for _, conn := range connections {
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(formattedMessage)); err != nil {
 			fmt.Println("Error sending message:", err)
