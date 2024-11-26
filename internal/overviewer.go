@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
-	"gorm.io/gorm"
 )
 
 var websocketUpgrader = websocket.Upgrader{
@@ -20,15 +19,25 @@ var websocketUpgrader = websocket.Upgrader{
 	},
 }
 
+type RepositoryManager struct {
+	RoomRepo    _db.RoomRepository
+	MessageRepo _db.MessageRepository
+	UserRepo    _db.UserRepository
+}
 type Overviewer struct {
-	ConnectedClients map[string][]*websocket.Conn
+	ConnectedClients  map[string][]*websocket.Conn
+	RepositoryManager *RepositoryManager
 }
 
 func newOverviewer() *Overviewer {
-	return &Overviewer{ConnectedClients: make(map[string][]*websocket.Conn)}
+	return &Overviewer{ConnectedClients: make(map[string][]*websocket.Conn), RepositoryManager: &RepositoryManager{}}
 }
 
 func (ow *Overviewer) connectWS(c echo.Context) error {
+	ow.RepositoryManager.RoomRepo = c.Request().Context().Value("roomRepo").(_db.RoomRepository)
+	ow.RepositoryManager.MessageRepo = c.Request().Context().Value("messageRepo").(_db.MessageRepository)
+	ow.RepositoryManager.UserRepo = c.Request().Context().Value("userRepo").(_db.UserRepository)
+
 	cookie, err := c.Cookie("session_token")
 	if err != nil {
 
@@ -39,7 +48,7 @@ func (ow *Overviewer) connectWS(c echo.Context) error {
 		return c.String(http.StatusUnauthorized, "Invalid session")
 	}
 	roomName := c.Param("room_name")
-	if !_db.CheckRoomExists(roomName) {
+	if !ow.RepositoryManager.RoomRepo.RoomExists(roomName) {
 		return c.NoContent(400)
 	}
 
@@ -56,7 +65,7 @@ func (ow *Overviewer) connectWS(c echo.Context) error {
 	return c.NoContent(200)
 }
 
-func (ow *Overviewer)handleMessages(conn *websocket.Conn, roomName string, userUUID string) {
+func (ow *Overviewer) handleMessages(conn *websocket.Conn, roomName string, userUUID string) {
 	defer conn.Close()
 
 	defer ow.removeConnectionFromChatroom(conn, roomName)
@@ -69,7 +78,7 @@ func (ow *Overviewer)handleMessages(conn *websocket.Conn, roomName string, userU
 			fmt.Println("Error reading message:", err)
 			break
 		}
-		ow.broadcastMessageToChatroom(_db.DB, roomName, msg, userUUID)
+		ow.broadcastMessageToChatroom(roomName, msg, userUUID)
 	}
 }
 
@@ -83,32 +92,27 @@ func (ow *Overviewer) removeConnectionFromChatroom(conn *websocket.Conn, roomNam
 	}
 }
 
-func (ow *Overviewer) broadcastMessageToChatroom(db *gorm.DB, roomName string, messageContent []byte, userUUID string) {
+func (ow *Overviewer) broadcastMessageToChatroom(roomName string, messageContent []byte, userUUID string) {
 
-	roomUUID, err := _db.GetRoomUUID(roomName)
+	room, err := ow.RepositoryManager.RoomRepo.GetRoomByName(roomName)
 	if err != nil {
 		fmt.Println("Error saving message:")
 
 	}
-	message := &_db.Message{
-		RoomID:  roomUUID,
-		UserID:  uuid.MustParse(userUUID),
-		Content: string(messageContent),
-	}
 
-	result := db.Create(message)
-	if result.Error != nil {
-		fmt.Println("Error saving message:", result.Error)
+	message, err := ow.RepositoryManager.MessageRepo.CreateMessage(room.ID, uuid.MustParse(userUUID), messageContent)
+	if err != nil {
+		fmt.Println("Error saving message:", err)
 		return
 	}
 
-	username, err := _db.GetUsername(uuid.MustParse(userUUID))
+	user, err := ow.RepositoryManager.UserRepo.GetUserByID(uuid.MustParse(userUUID))
 	if err != nil {
 		fmt.Println("Error saving message:")
 
 	}
 
-	formattedMessage := fmt.Sprintf("%s: %s", username, string(messageContent))
+	formattedMessage := fmt.Sprintf("%s: %s", user.Username, message.Content)
 
 	connections := ow.ConnectedClients[roomName]
 	for _, conn := range connections {

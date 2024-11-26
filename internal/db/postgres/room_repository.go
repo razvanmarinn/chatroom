@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/razvanmarinn/chatroom/internal/db"
 	_db "github.com/razvanmarinn/chatroom/internal/db"
 	"gorm.io/gorm"
 )
@@ -19,7 +18,7 @@ func NewPostgresRoomRepository(db *gorm.DB) *PostgresRoomRepository {
 	}
 }
 func (pgr *PostgresRoomRepository) CreateRoom(roomName string, owner_uuid uuid.UUID) (uuid.UUID, error) {
-	room := &db.Room{
+	room := &_db.Room{
 		ID:       uuid.New(),
 		RoomName: roomName,
 		Owner:    owner_uuid,

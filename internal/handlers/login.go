@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/razvanmarinn/chatroom/internal/db"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
@@ -35,14 +34,13 @@ func LoginHandler(c echo.Context) error {
 	if !userRepo.UserExists(username) {
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
 	}
-	// TODO:
-	// user := userRepo.GetUserByUsername(username)
-	user := db.User{
-		ID:       uuid.New(),
-		Password: "asd",
+	user, err := userRepo.GetUserByUsername(username)
+	if err != nil {
+		return c.String(http.StatusUnauthorized, "Invalid username or password")
+
 	}
 
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
 	if err != nil {
 

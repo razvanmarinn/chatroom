@@ -28,6 +28,17 @@ func (pgr *PostgresUserRepository) GetUserByID(userUUID uuid.UUID) (_db.User, er
 	return user, nil
 }
 
+func (pgr *PostgresUserRepository) GetUserByUsername(username string) (_db.User, error) {
+	var user _db.User
+	result := pgr.Db.Where("username = ?", username).First(&user)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return user, nil
+		}
+	}
+	return user, nil
+}
+
 func (pgr *PostgresUserRepository) CreateUser(username string, password string) (uuid.UUID, error) {
 	encryptedPassword, err := HashPassword(password)
 	if err != nil {

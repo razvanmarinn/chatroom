@@ -1,6 +1,8 @@
 package postgres_repo
 
 import (
+	"github.com/google/uuid"
+	_db "github.com/razvanmarinn/chatroom/internal/db"
 	"gorm.io/gorm"
 )
 
@@ -14,6 +16,13 @@ func NewPostgresMessageRepository(db *gorm.DB) *PostgresMessageRepository {
 	}
 }
 
-func (pgr *PostgresMessageRepository) CreateMessage(username string, password string) (int64, error) {
-	return 10, nil
+func (pgr *PostgresMessageRepository) CreateMessage(roomId uuid.UUID, userId uuid.UUID, content []byte) (*_db.Message, error) {
+	message := &_db.Message{
+		RoomID:  roomId,
+		UserID:  userId,
+		Content: string(content),
+	}
+
+	return message, nil
+
 }

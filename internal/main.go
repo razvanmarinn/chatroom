@@ -41,6 +41,8 @@ func IsAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
 func main() {
 
 	config := cfg.LoadConfig()
+	e := echo.New()
+	godotenv.Load("../.env")
 
 	dbConn, err := db.InitDatabase(config)
 	if err != nil {
@@ -66,10 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create message repository: %v", err)
 	}
-	//TODO: Add services 
-
-	e := echo.New()
-	godotenv.Load("../.env")
+	//TODO: Add services
 
 	ow := newOverviewer()
 
@@ -77,7 +76,7 @@ func main() {
 		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
-	e.Use(middleware.AddRepositoriesToContext(&userRepo, &roomRepo, &messageRepo))
+	e.Use(middleware.AddRepositoriesToContext(userRepo, roomRepo, messageRepo))
 	e.GET("/login", handlers.LoginHandler)
 	e.POST("/login", handlers.LoginHandler)
 	e.GET("/signup", handlers.RegisterHandler)

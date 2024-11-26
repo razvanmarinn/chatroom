@@ -9,6 +9,7 @@ type UserRepository interface {
 	UserExists(username string) bool
 	CreateUser(username string, password string) (uuid.UUID, error)
 	DeleteUser(username string) error
+	GetUserByUsername(username string) (User, error)
 }
 
 type RoomRepository interface {
@@ -18,5 +19,5 @@ type RoomRepository interface {
 }
 
 type MessageRepository interface {
-	CreateMessage(username string, password string) (int64, error)
+	CreateMessage(roomId uuid.UUID, userId uuid.UUID, content []byte) (*Message, error)
 }
