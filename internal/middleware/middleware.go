@@ -4,16 +4,14 @@ import (
 	"context"
 
 	"github.com/labstack/echo/v4"
-	_db "github.com/razvanmarinn/chatroom/internal/db"
+	"github.com/razvanmarinn/chatroom/internal/services"
 )
 
-func AddRepositoriesToContext(userRepo _db.UserRepository, roomRepo _db.RoomRepository, messagesRepo _db.MessageRepository) echo.MiddlewareFunc {
+func AddServicesToContext(sm *services.ServiceManager) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ctx := c.Request().Context()
-			ctx = context.WithValue(ctx, "userRepo", userRepo)
-			ctx = context.WithValue(ctx, "roomRepo", roomRepo)
-			ctx = context.WithValue(ctx, "messageRepo", messagesRepo)
+			ctx = context.WithValue(ctx, "serviceManager", sm)
 
 			c.SetRequest(c.Request().WithContext(ctx))
 

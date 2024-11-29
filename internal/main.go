@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
 
+	cache "github.com/razvanmarinn/chatroom/internal/cache"
 	"github.com/razvanmarinn/chatroom/internal/db"
 	r_fact "github.com/razvanmarinn/chatroom/internal/db/repository_factory"
 	"github.com/razvanmarinn/chatroom/internal/middleware"
+	"github.com/razvanmarinn/chatroom/internal/services"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -43,32 +46,33 @@ func main() {
 	config := cfg.LoadConfig()
 	e := echo.New()
 	godotenv.Load("../.env")
-
+	ctx := context.Background()
 	dbConn, err := db.InitDatabase(config)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
+	cacheManager, err := cache.NewCacheManager(ctx,config)
+	if err != nil {
+		log.Fatalf("Failed to create cache manager: %v", err)
+	}
 	repoFactory, err := r_fact.CreateRepositoryFactory(config.DbType, dbConn)
 	if err != nil {
 		log.Fatalf("Failed to create repository factory: %v", err)
 	}
 
-	userRepo, err := repoFactory.CreateUserRepository()
-	if err != nil {
-		log.Fatalf("Failed to create user repository: %v", err)
-	}
+	messageService := services.NewMessageService(cacheManager, repoFactory)
+	userService, _ := services.NewUserService(cacheManager, repoFactory)
+	roomService := services.NewRoomService(cacheManager, repoFactory)
 
-	roomRepo, err := repoFactory.CreateRoomRepository()
-	if err != nil {
-		log.Fatalf("Failed to create room repository: %v", err)
-	}
 
-	messageRepo, err := repoFactory.CreateMessageRepository()
-	if err != nil {
-		log.Fatalf("Failed to create message repository: %v", err)
+	serviceManager := &services.ServiceManager{
+		UserService: userService,
+		MessageService: messageService,
+
+		RoomService: roomService,
+
 	}
-	//TODO: Add services
 
 	ow := newOverviewer()
 
@@ -76,7 +80,7 @@ func main() {
 		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
-	e.Use(middleware.AddRepositoriesToContext(userRepo, roomRepo, messageRepo))
+	e.Use(middleware.AddServicesToContext(serviceManager))
 	e.GET("/login", handlers.LoginHandler)
 	e.POST("/login", handlers.LoginHandler)
 	e.GET("/signup", handlers.RegisterHandler)

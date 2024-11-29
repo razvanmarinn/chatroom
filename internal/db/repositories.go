@@ -20,4 +20,5 @@ type RoomRepository interface {
 
 type MessageRepository interface {
 	CreateMessage(roomId uuid.UUID, userId uuid.UUID, content []byte) (*Message, error)
+	GetLastMessagesByRoomID(roomID uuid.UUID, numberOfMessages int) ([]Message, error) 
 }

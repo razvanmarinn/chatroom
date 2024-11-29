@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
-	"github.com/razvanmarinn/chatroom/internal/db"
+	"github.com/razvanmarinn/chatroom/internal/services"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,32 +20,30 @@ func generateSecureSessionToken() string {
 	}
 	return hex.EncodeToString(bytes)
 }
-
 func LoginHandler(c echo.Context) error {
 	if c.Request().Method == http.MethodGet {
 		return c.Render(http.StatusOK, "login_body", nil)
 	}
 
-	userRepo := c.Request().Context().Value("userRepo").(db.UserRepository)
+	userService := c.Request().Context().Value("serviceManager").(*services.ServiceManager).UserService
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
-	if !userRepo.UserExists(username) {
-		return c.String(http.StatusUnauthorized, "Invalid username or password")
+	if username == "" || password == "" {
+		return c.String(http.StatusBadRequest, "Username and password are required")
 	}
-	user, err := userRepo.GetUserByUsername(username)
+
+	user, err := userService.GetUserByUsername(username)
 	if err != nil {
-		return c.String(http.StatusUnauthorized, "Invalid username or password")
-
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-
-	if err != nil {
-
+		log.Printf("Login attempt failed for user %s: %v", username, err)
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return c.String(http.StatusUnauthorized, "Invalid username or password")
+	}
+
 	sessionToken := generateSecureSessionToken()
 	http.SetCookie(c.Response(), &http.Cookie{
 		Name:     "session_token",

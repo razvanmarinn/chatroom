@@ -26,3 +26,18 @@ func (pgr *PostgresMessageRepository) CreateMessage(roomId uuid.UUID, userId uui
 	return message, nil
 
 }
+
+func (pgr *PostgresMessageRepository) GetLastMessagesByRoomID(roomID uuid.UUID, numberOfMessages int) ([]_db.Message, error) {
+	var messages []_db.Message
+	err := pgr.Db.
+		Where("room_id = ?", roomID).
+		Order("created_at DESC").
+		Limit(numberOfMessages).
+		Find(&messages).Error
+
+	if err != nil {
+		return messages, err
+	}
+
+	return messages, nil
+}

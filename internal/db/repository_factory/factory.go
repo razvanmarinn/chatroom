@@ -2,13 +2,12 @@ package repo_factory
 
 import (
 	"fmt"
-	_db "github.com/razvanmarinn/chatroom/internal/db"
+
 	"github.com/razvanmarinn/chatroom/internal/cfg"
+	_db "github.com/razvanmarinn/chatroom/internal/db"
 
 	"gorm.io/gorm"
 )
-
-
 
 type RepositoryFactory interface {
 	CreateUserRepository() (_db.UserRepository, error)

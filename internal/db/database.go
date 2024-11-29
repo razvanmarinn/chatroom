@@ -11,9 +11,7 @@ import (
 )
 
 func InitDatabase(cfg cfg.Config) (*gorm.DB, error) {
-	fmt.Println("POSTGRES_USERNAME:", os.Getenv("POSTGRES_USERNAME"))
-	fmt.Println("POSTGRES_PASSWORD:", os.Getenv("POSTGRES_PASSWORD"))
-	fmt.Println("POSTGRES_NAME:", os.Getenv("POSTGRES_NAME"))
+
 
 	//TODO: Multiple databases
 	dsn := fmt.Sprintf(
