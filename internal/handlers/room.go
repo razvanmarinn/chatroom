@@ -6,13 +6,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/razvanmarinn/chatroom/internal/logger"
+	"github.com/razvanmarinn/chatroom/internal/services"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
-
-	"github.com/razvanmarinn/chatroom/internal/db"
 )
 
 func RoomHandler(c echo.Context) error {
-	roomRepo := c.Request().Context().Value("roomRepo").(db.RoomRepository)
+	roomeService := c.Request().Context().Value("serviceManager").(*services.ServiceManager).RoomService
+	logger := c.Request().Context().Value("logger").(logger.Logger)
 
 	cookie, err := c.Cookie("session_token")
 	if err != nil {
@@ -26,7 +27,8 @@ func RoomHandler(c echo.Context) error {
 
 	roomName := c.FormValue("cr_room_name")
 
-	if roomRepo.RoomExists(roomName) {
+	if roomeService.RoomExists(roomName) {
+		logger.Warn("Room name already exists " + roomName)
 		return c.String(http.StatusConflict, "Room name already exists")
 	}
 
@@ -35,7 +37,7 @@ func RoomHandler(c echo.Context) error {
 		return err
 	}
 
-	room_id, err := roomRepo.CreateRoom(roomName, owner)
+	room_id, err := roomeService.CreateRoom(roomName, owner)
 	if err != nil {
 		return c.String(http.StatusConflict, "Room name already exists") // TODO: improve error
 	}

@@ -23,6 +23,10 @@ func (pgr *PostgresMessageRepository) CreateMessage(roomId uuid.UUID, userId uui
 		Content: string(content),
 	}
 
+	if err := pgr.Db.Create(&message).Error; err != nil {
+		return nil, err
+	}
+
 	return message, nil
 
 }

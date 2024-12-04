@@ -10,6 +10,7 @@ import (
 	cache "github.com/razvanmarinn/chatroom/internal/cache"
 	"github.com/razvanmarinn/chatroom/internal/db"
 	r_fact "github.com/razvanmarinn/chatroom/internal/db/repository_factory"
+	"github.com/razvanmarinn/chatroom/internal/logger"
 	"github.com/razvanmarinn/chatroom/internal/middleware"
 	"github.com/razvanmarinn/chatroom/internal/services"
 
@@ -42,37 +43,32 @@ func IsAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func main() {
+	godotenv.Load("../.env")
 
 	config := cfg.LoadConfig()
-	e := echo.New()
-	godotenv.Load("../.env")
 	ctx := context.Background()
+
+	logger := logger.NewLogger(config)
+	logger.Info(string(config.CacheType))
+
+	e := echo.New()
+
 	dbConn, err := db.InitDatabase(config)
+
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		logger.Error("Failed to initialize database: %v", err)
 	}
 
-	cacheManager, err := cache.NewCacheManager(ctx,config)
+	cacheManager, err := cache.NewCacheManager(ctx, config)
 	if err != nil {
-		log.Fatalf("Failed to create cache manager: %v", err)
+		logger.Error("Failed to create cache manager: %v", err)
 	}
 	repoFactory, err := r_fact.CreateRepositoryFactory(config.DbType, dbConn)
 	if err != nil {
-		log.Fatalf("Failed to create repository factory: %v", err)
+		logger.Error("Failed to create repository factory: %v", err)
 	}
 
-	messageService := services.NewMessageService(cacheManager, repoFactory)
-	userService, _ := services.NewUserService(cacheManager, repoFactory)
-	roomService := services.NewRoomService(cacheManager, repoFactory)
-
-
-	serviceManager := &services.ServiceManager{
-		UserService: userService,
-		MessageService: messageService,
-
-		RoomService: roomService,
-
-	}
+	serviceManager := services.NewServiceManager(cacheManager, repoFactory, logger)
 
 	ow := newOverviewer()
 
@@ -80,7 +76,7 @@ func main() {
 		templates: template.Must(template.ParseGlob("frontend/*.html")),
 	}
 	e.Renderer = t
-	e.Use(middleware.AddServicesToContext(serviceManager))
+	e.Use(middleware.AddToContext(serviceManager, logger))
 	e.GET("/login", handlers.LoginHandler)
 	e.POST("/login", handlers.LoginHandler)
 	e.GET("/signup", handlers.RegisterHandler)

@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/razvanmarinn/chatroom/internal/logger"
 	"github.com/razvanmarinn/chatroom/internal/services"
 	ss "github.com/razvanmarinn/chatroom/internal/session_store"
 
@@ -26,6 +27,8 @@ func LoginHandler(c echo.Context) error {
 	}
 
 	userService := c.Request().Context().Value("serviceManager").(*services.ServiceManager).UserService
+	logger := c.Request().Context().Value("logger").(logger.Logger)
+
 
 	username := c.FormValue("username")
 	password := c.FormValue("password")
@@ -36,7 +39,7 @@ func LoginHandler(c echo.Context) error {
 
 	user, err := userService.GetUserByUsername(username)
 	if err != nil {
-		log.Printf("Login attempt failed for user %s: %v", username, err)
+		logger.Error("Login attempt failed for user %s: %v", username, err)
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
 	}
 

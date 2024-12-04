@@ -85,7 +85,6 @@ func (m *MemcachedCacheManager) Init(ctx context.Context, config cfg.Config) err
 }
 
 func (m *MemcachedCacheManager) AddToList(ctx context.Context, key string, value string) error {
-	// This is a pseudo-implementation and won't work without a proper Memcached client
 	return errors.New("Memcached list operations not implemented")
 }
 func (m *MemcachedCacheManager) GetList(ctx context.Context, key string) ([]string, error) {

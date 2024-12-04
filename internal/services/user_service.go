@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/razvanmarinn/chatroom/internal/logger"
+
 	cache "github.com/razvanmarinn/chatroom/internal/cache"
 	"github.com/razvanmarinn/chatroom/internal/db"
 	r_fact "github.com/razvanmarinn/chatroom/internal/db/repository_factory"
@@ -12,9 +14,10 @@ import (
 type UserService struct {
 	UserRepo     db.UserRepository
 	CacheManager cache.CacheManager
+	Logger       logger.Logger
 }
 
-func NewUserService(cm cache.CacheManager, rf r_fact.RepositoryFactory) (*UserService, error) {
+func NewUserService(cm cache.CacheManager, rf r_fact.RepositoryFactory, logger logger.Logger) (*UserService, error) {
 	userRepo, err := rf.CreateUserRepository()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user repository: %w", err)
@@ -23,6 +26,7 @@ func NewUserService(cm cache.CacheManager, rf r_fact.RepositoryFactory) (*UserSe
 	return &UserService{
 		UserRepo:     userRepo,
 		CacheManager: cm,
+		Logger:       logger,
 	}, nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	"github.com/razvanmarinn/chatroom/internal/services"
 
 	"github.com/google/uuid"
@@ -17,11 +18,12 @@ var websocketUpgrader = websocket.Upgrader{
 		return true
 	},
 }
+
 const _NO_OF_CACHED_MESSAGES = 100
 
 type Overviewer struct {
-	ConnectedClients  map[string][]*websocket.Conn
-	ServiceManager *services.ServiceManager
+	ConnectedClients map[string][]*websocket.Conn
+	ServiceManager   *services.ServiceManager
 }
 
 func newOverviewer() *Overviewer {
@@ -63,7 +65,7 @@ func (ow *Overviewer) connectWS(c echo.Context) error {
 	messages, err := ow.ServiceManager.MessageService.GetLastMessagesByRoomID(room.ID, _NO_OF_CACHED_MESSAGES)
 	if err != nil {
 		fmt.Println("Error fetching room messages:", err)
-		
+
 	}
 
 	for _, message := range messages {
