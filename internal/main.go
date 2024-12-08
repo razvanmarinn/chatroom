@@ -49,7 +49,6 @@ func main() {
 	ctx := context.Background()
 
 	logger := logger.NewLogger(config)
-	logger.Info(string(config.CacheType))
 
 	e := echo.New()
 

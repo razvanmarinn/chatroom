@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/razvanmarinn/chatroom/internal/logger"
 	"github.com/razvanmarinn/chatroom/internal/services"
 
 	"github.com/google/uuid"
@@ -24,6 +25,7 @@ const _NO_OF_CACHED_MESSAGES = 100
 type Overviewer struct {
 	ConnectedClients map[string][]*websocket.Conn
 	ServiceManager   *services.ServiceManager
+	Logger           logger.Logger
 }
 
 func newOverviewer() *Overviewer {
@@ -32,10 +34,11 @@ func newOverviewer() *Overviewer {
 
 func (ow *Overviewer) connectWS(c echo.Context) error {
 	ow.ServiceManager = c.Request().Context().Value("serviceManager").(*services.ServiceManager)
+	ow.Logger = c.Request().Context().Value("logger").(logger.Logger)
 
 	cookie, err := c.Cookie("session_token")
 	if err != nil {
-		fmt.Println("Error reading session token:", err)
+		ow.Logger.Error("Reading session token failed ", err)
 		return c.String(http.StatusUnauthorized, "Invalid session")
 	}
 
@@ -57,27 +60,28 @@ func (ow *Overviewer) connectWS(c echo.Context) error {
 
 	room, err := ow.ServiceManager.RoomService.GetRoomByName(roomName)
 	if err != nil {
-		fmt.Println("Error getting room:", err)
+		ow.Logger.Error("Getting room by name failed", err)
 		conn.Close()
 		return c.String(http.StatusInternalServerError, "Room not found")
 	}
 
 	messages, err := ow.ServiceManager.MessageService.GetLastMessagesByRoomID(room.ID, _NO_OF_CACHED_MESSAGES)
 	if err != nil {
-		fmt.Println("Error fetching room messages:", err)
+		ow.Logger.Error("Getting room by name failed", err)
+
 
 	}
 
 	for _, message := range messages {
 		user, err := ow.ServiceManager.UserService.GetUserByID(message.UserID)
 		if err != nil {
-			fmt.Println("Error getting user for message:", err)
+			ow.Logger.Error("Getting user by ID failed", err)
 			continue
 		}
 
 		formattedMessage := fmt.Sprintf("%s: %s", user.Username, message.Content)
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(formattedMessage)); err != nil {
-			fmt.Println("Error sending historical message:", err)
+			ow.Logger.Error("Sending historical messagesfailed", err)
 			break
 		}
 	}
@@ -99,7 +103,8 @@ func (ow *Overviewer) handleMessages(conn *websocket.Conn, roomName string, user
 
 		if err != nil {
 
-			fmt.Println("Error reading message:", err)
+			ow.Logger.Error("Reading message failed", err)
+
 			break
 		}
 		ow.broadcastMessageToChatroom(roomName, msg, userUUID)
@@ -120,19 +125,22 @@ func (ow *Overviewer) broadcastMessageToChatroom(roomName string, messageContent
 
 	room, err := ow.ServiceManager.RoomService.GetRoomByName(roomName)
 	if err != nil {
-		fmt.Println("Error saving message:")
+		ow.Logger.Error("Getting room by name failed", err)
+
 
 	}
 
 	message, err := ow.ServiceManager.MessageService.CreateMessage(room.ID, uuid.MustParse(userUUID), messageContent)
+	ow.Logger.Info(string(message.Content))
 	if err != nil {
-		fmt.Println("Error saving message:", err)
+		ow.Logger.Error("Saving message failed", err)
+
 		return
 	}
 
 	user, err := ow.ServiceManager.UserService.GetUserByID(uuid.MustParse(userUUID))
 	if err != nil {
-		fmt.Println("Error saving message:")
+		ow.Logger.Error("Getting user by ID failed", err)
 
 	}
 
@@ -141,7 +149,7 @@ func (ow *Overviewer) broadcastMessageToChatroom(roomName string, messageContent
 	connections := ow.ConnectedClients[roomName]
 	for _, conn := range connections {
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(formattedMessage)); err != nil {
-			fmt.Println("Error sending message:", err)
+			ow.Logger.Error("Sending message failed", err)
 			continue
 		}
 	}

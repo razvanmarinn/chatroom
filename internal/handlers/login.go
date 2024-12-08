@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -29,7 +30,6 @@ func LoginHandler(c echo.Context) error {
 	userService := c.Request().Context().Value("serviceManager").(*services.ServiceManager).UserService
 	logger := c.Request().Context().Value("logger").(logger.Logger)
 
-
 	username := c.FormValue("username")
 	password := c.FormValue("password")
 
@@ -39,11 +39,12 @@ func LoginHandler(c echo.Context) error {
 
 	user, err := userService.GetUserByUsername(username)
 	if err != nil {
-		logger.Error("Login attempt failed for user %s: %v", username, err)
+		logger.Error(fmt.Sprintf("Login attempt failed for user %s", username), err)
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		logger.Error(fmt.Sprintf("Login attempt failed for user %s", username), err)
 		return c.String(http.StatusUnauthorized, "Invalid username or password")
 	}
 

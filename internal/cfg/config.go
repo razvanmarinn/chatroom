@@ -29,7 +29,7 @@ const (
 	Centralized LogType = "centralized"
 )
 
-func LoadConfig() (Config) {
+func LoadConfig() Config {
 	var config Config
 
 	file, err := os.Open("D:/Razvan/proj/golearn/chatroom/internal/cfg/config.yml")
