@@ -103,8 +103,10 @@
             messageArea.value += event.data + "\n";
             messageArea.scrollTop = messageArea.scrollHeight;
         };
-        
+
         socket.onerror = function(error) {
+            console.error("WebSocket Error:", error);
+
             document.getElementById("connection_status").innerHTML = 
                 "Connection status is NOT ACTIVE/FAILED";
             document.getElementById("connection_status").className = 

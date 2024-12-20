@@ -67,3 +67,15 @@ func (us *UserService) GetUserByID(uuid uuid.UUID) (db.User, error) {
 
 	return user, nil
 }
+
+func (us *UserService) CreateUser(username string, password string) (db.User, error) {
+	_, err := us.UserRepo.CreateUser(username, password)
+	if err != nil {
+		return db.User{}, fmt.Errorf("failed to retrieve user by username: %w", err)
+	}
+	return db.User{}, nil
+}
+
+func (us *UserService) CheckUserExists(username string) bool {
+	return us.UserRepo.UserExists(username)
+}

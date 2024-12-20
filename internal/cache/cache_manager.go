@@ -55,16 +55,26 @@ func (r *RedisCacheManager) GetLengthForList(ctx context.Context, key string) (i
 }
 
 func (r *RedisCacheManager) Init(ctx context.Context, config cfg.Config) error {
-	// redis_db, _ := strconv.ParseInt(os.Getenv("REDIS_DB"), 10, 0)
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+
+	// Combine host and port
+	redisAddr := fmt.Sprintf("%s:%s", redisHost, redisPort)
+
 	r.DB = redis.NewClient(&redis.Options{
-		Addr: os.Getenv("REDIS_ADDR"),
+		Addr: redisAddr,
+		// Uncomment and use if you add password later
 		// Password: os.Getenv("REDIS_PASSWORD"),
 		// DB:       int(redis_db),
 	})
-	_, err := r.DB.Ping(ctx).Result()
 
-	fmt.Println("Connected to redis ")
-	return err
+	_, err := r.DB.Ping(ctx).Result()
+	if err != nil {
+		return fmt.Errorf("failed to connect to Redis: %v", err)
+	}
+
+	fmt.Println("Connected to Redis successfully")
+	return nil
 }
 
 type MemcachedCacheManager struct {

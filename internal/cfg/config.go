@@ -1,11 +1,5 @@
 package cfg
 
-import (
-	"os"
-
-	"gopkg.in/yaml.v3"
-)
-
 type Config struct {
 	DbType    DatabaseType `yaml:"dbType"`
 	CacheType CacheType    `yaml:"cacheType"`
@@ -29,21 +23,25 @@ const (
 	Centralized LogType = "centralized"
 )
 
+// func LoadConfig() Config {
+// 	var config Config
+
+// 	file, err := os.Open("/cfg/config.yml")
+
+// 	if err != nil {
+// 		return config
+// 	}
+// 	defer file.Close()
+
+// 	decoder := yaml.NewDecoder(file)
+// 	err = decoder.Decode(&config)
+// 	if err != nil {
+// 		return config
+// 	}
+
+// 	return config
+// }
 func LoadConfig() Config {
-	var config Config
 
-	file, err := os.Open("D:/Razvan/proj/golearn/chatroom/internal/cfg/config.yml")
-
-	if err != nil {
-		return config
-	}
-	defer file.Close()
-
-	decoder := yaml.NewDecoder(file)
-	err = decoder.Decode(&config)
-	if err != nil {
-		return config
-	}
-
-	return config
+	return Config{DbType: "postgres", CacheType: "redis", LogType: "local"}
 }

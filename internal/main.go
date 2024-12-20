@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"html/template"
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	cache "github.com/razvanmarinn/chatroom/internal/cache"
 	"github.com/razvanmarinn/chatroom/internal/db"
@@ -43,9 +45,11 @@ func IsAuthenticated(next echo.HandlerFunc) echo.HandlerFunc {
 }
 
 func main() {
-	godotenv.Load("../.env")
+	godotenv.Load(".env")
 
 	config := cfg.LoadConfig()
+
+	fmt.Println(config.CacheType)
 	ctx := context.Background()
 
 	logger := logger.NewLogger(config)
@@ -61,6 +65,7 @@ func main() {
 	cacheManager, err := cache.NewCacheManager(ctx, config)
 	if err != nil {
 		logger.Error("Failed to create cache manager: %v", err)
+		os.Exit(1)
 	}
 	repoFactory, err := r_fact.CreateRepositoryFactory(config.DbType, dbConn)
 	if err != nil {
